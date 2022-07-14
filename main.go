@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -126,14 +125,4 @@ func main() {
 func handleVideo(fileName string, mediaInfo MediaInfo, handleVideoCodec bool, handleVideoPixFmt bool, handleAudioCodec bool) {
 	//ffmpegCmdArray := []string{}
 	//ffmpegCmd := exec.Command("ffmpeg", "-i", fileName)
-}
-
-func GetBytes(key interface{}) ([]byte, error) {
-	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
-	err := enc.Encode(key)
-	if err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
 }
