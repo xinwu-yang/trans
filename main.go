@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"os"
 	"os/exec"
 
@@ -27,18 +26,19 @@ type Stream struct {
 }
 
 type VideoSteam struct {
-	Stream      Stream
+	Stream
 	PixelFormat string `json:"pix_fmt"`
 }
 
 type AudioSteam struct {
-	Stream   Stream
-	Channels int `json:"channels,string"`
+	Stream
+	Channels int `json:"channels"`
 }
 
 type MediaInfo struct {
-	Format  Format   `json:"format"`
-	Streams []Stream `json:"streams"`
+	Format     Format
+	VideoSteam VideoSteam
+	AudioSteam AudioSteam
 }
 
 func main() {
@@ -46,7 +46,7 @@ func main() {
 	defer logger.Sync() // flushes buffer, if any
 	sugar := logger.Sugar()
 
-	baseDir := "H:\\INDAV"
+	baseDir := "D:\\demo-video"
 	f, err := os.OpenFile(baseDir, os.O_RDONLY, os.ModeDir)
 	if err != nil {
 		sugar.Errorf("open dir has error", "err", err.Error())
@@ -69,11 +69,11 @@ func main() {
 					bt.Write(readData[:i])
 				} else {
 					// 读取完输出后解析json
-					videoInfoJson := bt.String()
-					fmt.Println(videoInfoJson)
+					//videoInfoJson := bt.String()
+					//fmt.Println(videoInfoJson)
 					format := Format{}
-					//videoSteam := VideoSteam{}
-					//audioSteam := AudioSteam{}
+					videoSteam := VideoSteam{}
+					audioSteam := AudioSteam{}
 					mediaInfo := MediaInfo{}
 					jsonBytes := bt.Bytes()
 					var data map[string]interface{}
@@ -84,34 +84,45 @@ func main() {
 					}
 					formatBytes, _ := json.Marshal(data["format"])
 					json.Unmarshal(formatBytes, &format)
-					handleVideoCodec, handleVideoPixFmt, handleAudioCodec := false, false, false
-					streams := mediaInfo.Streams
-					size := len(streams)
-					// 根据参数判断是否处理视频
-					if size > 0 {
-						for i := 0; i < size; i++ {
-							stream := streams[i]
-							if stream.CodecType == "video" && stream.CodecName != "hevc" {
-								handleVideoCodec = true
-								continue
-							}
 
-							if stream.CodecType == "video" && stream.CodecName != "hevc" {
-								handleVideoPixFmt = true
-								continue
-							}
+					streams := data["streams"]
+					streamsBytes, _ := json.Marshal(streams)
+					var streamData []map[string]interface{}
+					json.Unmarshal(streamsBytes, &streamData)
 
-							if stream.CodecType == "audio" && stream.CodecName != "aac" {
-								handleAudioCodec = true
-								continue
-							}
+					for _, stream := range streamData {
+						streamBytes, _ := json.Marshal(stream)
+						if stream["codec_type"] == "video" {
+							json.Unmarshal(streamBytes, &videoSteam)
+						} else if stream["codec_type"] == "audio" {
+							json.Unmarshal(streamBytes, &audioSteam)
 						}
 					}
+					mediaInfo.Format = format
+					mediaInfo.VideoSteam = videoSteam
+					mediaInfo.AudioSteam = audioSteam
+					handleVideoCodec, handleVideoPixFmt, handleAudioCodec, handleAudioChannels := false, false, false, false
 
+					// 根据参数判断是否处理视频
+					if videoSteam.CodecType == "video" && videoSteam.CodecName != "hevc" {
+						handleVideoCodec = true
+					}
+					if videoSteam.CodecType == "video" && videoSteam.PixelFormat != "yuv420p" {
+						handleVideoPixFmt = true
+					}
+					if audioSteam.CodecType == "audio" && audioSteam.CodecName != "aac" {
+						handleAudioCodec = true
+					}
+					if audioSteam.CodecType == "audio" && audioSteam.Channels != 2 {
+						handleAudioChannels = true
+					}
 					// 开始处理视频
-					sugar.Infof("是否处理视频：", handleVideoCodec)
+					sugar.Infof("是否处理视频编码：%f\n", handleVideoCodec)
+					sugar.Infof("是否处理视频像素格式：%f\n", handleVideoPixFmt)
+					sugar.Infof("是否处理音频编码：%f\n", handleAudioCodec)
+					sugar.Infof("是否处理音频声道数：%f\n", handleAudioChannels)
 					if handleVideoCodec {
-						handleVideo(fileName, mediaInfo, handleVideoCodec, handleVideoPixFmt, handleAudioCodec)
+						handleVideo(fileName, mediaInfo, handleVideoCodec, handleVideoPixFmt, handleAudioCodec, handleAudioChannels)
 					}
 					break
 				}
@@ -122,7 +133,7 @@ func main() {
 }
 
 /*处理视频*/
-func handleVideo(fileName string, mediaInfo MediaInfo, handleVideoCodec bool, handleVideoPixFmt bool, handleAudioCodec bool) {
+func handleVideo(fileName string, mediaInfo MediaInfo, handleVideoCodec bool, handleVideoPixFmt bool, handleAudioCodec bool, handleAudioChannels bool) {
 	//ffmpegCmdArray := []string{}
 	//ffmpegCmd := exec.Command("ffmpeg", "-i", fileName)
 }
