@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"os"
 	"os/exec"
+	"runtime"
 
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 const BufferSize = 32768
@@ -41,10 +43,28 @@ type MediaInfo struct {
 	AudioSteam AudioSteam
 }
 
+func getEncoder() zapcore.Encoder {
+	encoderConfig := zap.NewProductionEncoderConfig()
+	// 时间函数可以自定义
+	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
+	return zapcore.NewConsoleEncoder(encoderConfig)
+}
+
+// 输出到文件
+// func getLogWriter() zapcore.WriteSyncer {
+// 	file, _ := os.Create("./app.log")
+// 	return zapcore.AddSync(file)
+// }
+
 func main() {
-	logger, _ := zap.NewProduction()
-	defer logger.Sync() // flushes buffer, if any
+	core := zapcore.NewCore(getEncoder(), zapcore.AddSync(os.Stdout), zapcore.DebugLevel)
+	logger := zap.New(core, zap.AddCaller())
+	defer logger.Sync()
 	sugar := logger.Sugar()
+
+	sugar.Infof("系统：%s", runtime.GOOS)
+	sugar.Infof("架构：%s", runtime.GOARCH)
 
 	baseDir := "D:\\demo-video"
 	f, err := os.OpenFile(baseDir, os.O_RDONLY, os.ModeDir)
@@ -55,7 +75,7 @@ func main() {
 	dirs, _ := f.ReadDir(-1)
 	for _, dir := range dirs {
 		if !dir.IsDir() {
-			sugar.Infof("开始处理文件：", dir.Name())
+			sugar.Infof("开始处理文件：%s", dir.Name())
 			fileName := baseDir + "\\" + dir.Name()
 			sugar.Infof("ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", fileName)
 			cmd := exec.Command("ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", fileName)
@@ -117,10 +137,10 @@ func main() {
 						handleAudioChannels = true
 					}
 					// 开始处理视频
-					sugar.Infof("是否处理视频编码：%f\n", handleVideoCodec)
-					sugar.Infof("是否处理视频像素格式：%f\n", handleVideoPixFmt)
-					sugar.Infof("是否处理音频编码：%f\n", handleAudioCodec)
-					sugar.Infof("是否处理音频声道数：%f\n", handleAudioChannels)
+					sugar.Infof("是否处理视频编码：%v", handleVideoCodec)
+					sugar.Infof("是否处理视频像素格式：%v", handleVideoPixFmt)
+					sugar.Infof("是否处理音频编码：%v", handleAudioCodec)
+					sugar.Infof("是否处理音频声道数：%v", handleAudioChannels)
 					if handleVideoCodec {
 						handleVideo(fileName, mediaInfo, handleVideoCodec, handleVideoPixFmt, handleAudioCodec, handleAudioChannels)
 					}
