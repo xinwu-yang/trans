@@ -4,10 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"flag"
+	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 
+	"github.com/thinkeridea/go-extend/exunicode/exutf8"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -59,7 +63,6 @@ func getEncoder() zapcore.Encoder {
 // }
 
 func main() {
-
 	// 定义几个变量，用于接收命令行的参数值
 	var path string
 	flag.StringVar(&path, "d", "", "路径，默认为空")
@@ -141,7 +144,7 @@ func main() {
 					if audioSteam.CodecType == "audio" && audioSteam.CodecName != "aac" {
 						handleAudioCodec = true
 					}
-					if audioSteam.CodecType == "audio" && audioSteam.Channels != 2 {
+					if audioSteam.CodecType == "audio" && audioSteam.Channels > 2 {
 						handleAudioChannels = true
 					}
 					// 开始处理视频
@@ -150,7 +153,7 @@ func main() {
 					sugar.Infof("是否处理音频编码：%v", handleAudioCodec)
 					sugar.Infof("是否处理音频声道数：%v", handleAudioChannels)
 					if handleVideoCodec {
-						handleVideo(fileName, mediaInfo, handleVideoCodec, handleVideoPixFmt, handleAudioCodec, handleAudioChannels)
+						handleVideo(fileName, dir, mediaInfo, handleVideoCodec, handleVideoPixFmt, handleAudioCodec, handleAudioChannels)
 					}
 					break
 				}
@@ -161,7 +164,27 @@ func main() {
 }
 
 /*处理视频*/
-func handleVideo(fileName string, mediaInfo MediaInfo, handleVideoCodec bool, handleVideoPixFmt bool, handleAudioCodec bool, handleAudioChannels bool) {
-	//ffmpegCmdArray := []string{}
-	//ffmpegCmd := exec.Command("ffmpeg", "-i", fileName)
+func handleVideo(fileName string, dir fs.DirEntry, mediaInfo MediaInfo, handleVideoCodec bool, handleVideoPixFmt bool, handleAudioCodec bool, handleAudioChannels bool) {
+	ffmpegCmdArray := []string{"-i", fileName}
+
+	if handleVideoCodec {
+		ffmpegCmdArray = append(ffmpegCmdArray, "-c:v", "hevc_nvenc")
+	}
+
+	if handleVideoPixFmt {
+		ffmpegCmdArray = append(ffmpegCmdArray, "-pix_fmt", "yuv420p")
+	}
+
+	if handleAudioCodec {
+		ffmpegCmdArray = append(ffmpegCmdArray, "-c:a", "aac")
+	}
+
+	if handleAudioChannels {
+		ffmpegCmdArray = append(ffmpegCmdArray, "-ac", "2")
+	}
+	tempName := exutf8.RuneSubString(dir.Name(), 0, strings.LastIndexAny(dir.Name(), "."))
+	ffmpegCmdArray = append(ffmpegCmdArray, tempName+"-HEVC")
+	fmt.Println(ffmpegCmdArray)
+	//ffmpegCmd := exec.Command("ffmpeg", ffmpegCmdArray...)
+	//ffmpegCmd.Start()
 }
