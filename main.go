@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"os"
 	"os/exec"
 	"runtime"
@@ -58,6 +59,13 @@ func getEncoder() zapcore.Encoder {
 // }
 
 func main() {
+
+	// 定义几个变量，用于接收命令行的参数值
+	var path string
+	flag.StringVar(&path, "d", "", "路径，默认为空")
+	// 解析注册的 flag
+	flag.Parse()
+
 	core := zapcore.NewCore(getEncoder(), zapcore.AddSync(os.Stdout), zapcore.DebugLevel)
 	logger := zap.New(core, zap.AddCaller())
 	defer logger.Sync()
@@ -66,8 +74,8 @@ func main() {
 	sugar.Infof("系统：%s", runtime.GOOS)
 	sugar.Infof("架构：%s", runtime.GOARCH)
 
-	baseDir := "D:\\demo-video"
-	f, err := os.OpenFile(baseDir, os.O_RDONLY, os.ModeDir)
+	//baseDir := "D:\\demo-video"
+	f, err := os.OpenFile(path, os.O_RDONLY, os.ModeDir)
 	if err != nil {
 		sugar.Errorf("open dir has error", "err", err.Error())
 	}
@@ -76,8 +84,8 @@ func main() {
 	for _, dir := range dirs {
 		if !dir.IsDir() {
 			sugar.Infof("开始处理文件：%s", dir.Name())
-			fileName := baseDir + "\\" + dir.Name()
-			sugar.Infof("ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", fileName)
+			fileName := path + "\\" + dir.Name()
+			sugar.Infof("CMD: ffprobe -v quiet -print_format json -show_format -show_streams %v", fileName)
 			cmd := exec.Command("ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", fileName)
 			ffprobeOut, _ := cmd.StdoutPipe()
 			cmd.Start()
