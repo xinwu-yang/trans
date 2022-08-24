@@ -16,7 +16,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-const BufferSize = 32768
+const BufferSize = 4096
 
 type Format struct {
 	FileName       string  `json:"filename"`
@@ -65,7 +65,9 @@ func getEncoder() zapcore.Encoder {
 func main() {
 	// 定义几个变量，用于接收命令行的参数值
 	var path string
+	var videoCodec string
 	flag.StringVar(&path, "d", "", "路径，默认为空")
+	flag.StringVar(&videoCodec, "vc", "hevc", "视频编解码")
 	// 解析注册的 flag
 	flag.Parse()
 
@@ -100,8 +102,6 @@ func main() {
 					bt.Write(readData[:i])
 				} else {
 					// 读取完输出后解析json
-					//videoInfoJson := bt.String()
-					//fmt.Println(videoInfoJson)
 					format := Format{}
 					videoSteam := VideoSteam{}
 					audioSteam := AudioSteam{}
@@ -153,7 +153,7 @@ func main() {
 					sugar.Infof("是否处理音频编码：%v", handleAudioCodec)
 					sugar.Infof("是否处理音频声道数：%v", handleAudioChannels)
 					if handleVideoCodec || handleVideoPixFmt || handleAudioCodec || handleAudioChannels {
-						handleVideo(fileName, dir, path, mediaInfo, handleVideoCodec, handleVideoPixFmt, handleAudioCodec, handleAudioChannels)
+						handleVideo(fileName, dir, path, videoCodec, sugar, handleVideoCodec, handleVideoPixFmt, handleAudioCodec, handleAudioChannels)
 					}
 					break
 				}
@@ -164,11 +164,11 @@ func main() {
 }
 
 /*处理视频*/
-func handleVideo(fileName string, dir fs.DirEntry, path string, mediaInfo MediaInfo, handleVideoCodec bool, handleVideoPixFmt bool, handleAudioCodec bool, handleAudioChannels bool) {
+func handleVideo(fileName string, dir fs.DirEntry, path string, vc string, sugar *zap.SugaredLogger, handleVideoCodec bool, handleVideoPixFmt bool, handleAudioCodec bool, handleAudioChannels bool) {
 	ffmpegCmdArray := []string{"-i", fileName}
 
 	if handleVideoCodec {
-		ffmpegCmdArray = append(ffmpegCmdArray, "-c:v", "hevc")
+		ffmpegCmdArray = append(ffmpegCmdArray, "-c:v", vc)
 	}
 
 	if handleVideoPixFmt {
@@ -185,11 +185,14 @@ func handleVideo(fileName string, dir fs.DirEntry, path string, mediaInfo MediaI
 
 	tempName := exutf8.RuneSubString(dir.Name(), 0, strings.LastIndexAny(dir.Name(), "."))
 	ffmpegCmdArray = append(ffmpegCmdArray, tempName+"-HEVC.mp4")
-	fmt.Println(ffmpegCmdArray)
+	sugar.Infof("", ffmpegCmdArray)
 	ffmpegCmd := exec.Command("ffmpeg", ffmpegCmdArray...)
 	ffmpegCmd.Dir = path
 	ffmpegOut, _ := ffmpegCmd.StdoutPipe()
-	ffmpegCmd.Start()
+
+	if err := ffmpegCmd.Start(); err != nil { // 运行命令
+		fmt.Println(err.Error())
+	}
 
 	readData := make([]byte, BufferSize)
 	i, _ := ffmpegOut.Read(readData)
@@ -202,5 +205,5 @@ func handleVideo(fileName string, dir fs.DirEntry, path string, mediaInfo MediaI
 		}
 	}
 
-	ffmpegOut.Close()
+	defer ffmpegOut.Close()
 }
