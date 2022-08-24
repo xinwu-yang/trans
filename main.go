@@ -199,7 +199,7 @@ func handleVideo(fileName string, dir fs.DirEntry, path string, vc string, sugar
 
 	for {
 		if i > 0 {
-			fmt.Println(readData)
+			sugar.Infof("ffmpeg output: %v", readData)
 		} else {
 			break
 		}

@@ -14,6 +14,12 @@
 # 构建
 go build
 
-# 使用
+# 使用帮助
 h264-to-h265.exe -h
+
+# 使用
+h264-to-h265.exe -d "D:\\demo-video\\test"
+
+# GPU加速
+h264-to-h265.exe -d "D:\\demo-video\\test" -vc hevc_nvenc
 ```
