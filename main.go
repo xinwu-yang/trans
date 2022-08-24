@@ -152,8 +152,8 @@ func main() {
 					sugar.Infof("是否处理视频像素格式：%v", handleVideoPixFmt)
 					sugar.Infof("是否处理音频编码：%v", handleAudioCodec)
 					sugar.Infof("是否处理音频声道数：%v", handleAudioChannels)
-					if handleVideoCodec {
-						handleVideo(fileName, dir, mediaInfo, handleVideoCodec, handleVideoPixFmt, handleAudioCodec, handleAudioChannels)
+					if handleVideoCodec || handleVideoPixFmt || handleAudioCodec || handleAudioChannels {
+						handleVideo(fileName, dir, path, mediaInfo, handleVideoCodec, handleVideoPixFmt, handleAudioCodec, handleAudioChannels)
 					}
 					break
 				}
@@ -164,11 +164,11 @@ func main() {
 }
 
 /*处理视频*/
-func handleVideo(fileName string, dir fs.DirEntry, mediaInfo MediaInfo, handleVideoCodec bool, handleVideoPixFmt bool, handleAudioCodec bool, handleAudioChannels bool) {
+func handleVideo(fileName string, dir fs.DirEntry, path string, mediaInfo MediaInfo, handleVideoCodec bool, handleVideoPixFmt bool, handleAudioCodec bool, handleAudioChannels bool) {
 	ffmpegCmdArray := []string{"-i", fileName}
 
 	if handleVideoCodec {
-		ffmpegCmdArray = append(ffmpegCmdArray, "-c:v", "hevc_nvenc")
+		ffmpegCmdArray = append(ffmpegCmdArray, "-c:v", "hevc")
 	}
 
 	if handleVideoPixFmt {
@@ -182,9 +182,25 @@ func handleVideo(fileName string, dir fs.DirEntry, mediaInfo MediaInfo, handleVi
 	if handleAudioChannels {
 		ffmpegCmdArray = append(ffmpegCmdArray, "-ac", "2")
 	}
+
 	tempName := exutf8.RuneSubString(dir.Name(), 0, strings.LastIndexAny(dir.Name(), "."))
-	ffmpegCmdArray = append(ffmpegCmdArray, tempName+"-HEVC")
+	ffmpegCmdArray = append(ffmpegCmdArray, tempName+"-HEVC.mp4")
 	fmt.Println(ffmpegCmdArray)
-	//ffmpegCmd := exec.Command("ffmpeg", ffmpegCmdArray...)
-	//ffmpegCmd.Start()
+	ffmpegCmd := exec.Command("ffmpeg", ffmpegCmdArray...)
+	ffmpegCmd.Dir = path
+	ffmpegOut, _ := ffmpegCmd.StdoutPipe()
+	ffmpegCmd.Start()
+
+	readData := make([]byte, BufferSize)
+	i, _ := ffmpegOut.Read(readData)
+
+	for {
+		if i > 0 {
+			fmt.Println(readData)
+		} else {
+			break
+		}
+	}
+
+	ffmpegOut.Close()
 }
