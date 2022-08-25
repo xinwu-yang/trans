@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"flag"
-	"fmt"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -166,44 +165,26 @@ func main() {
 /*处理视频*/
 func handleVideo(fileName string, dir fs.DirEntry, path string, vc string, sugar *zap.SugaredLogger, handleVideoCodec bool, handleVideoPixFmt bool, handleAudioCodec bool, handleAudioChannels bool) {
 	ffmpegCmdArray := []string{"-i", fileName}
-
 	if handleVideoCodec {
 		ffmpegCmdArray = append(ffmpegCmdArray, "-c:v", vc)
 	}
-
 	if handleVideoPixFmt {
 		ffmpegCmdArray = append(ffmpegCmdArray, "-pix_fmt", "yuv420p")
 	}
-
 	if handleAudioCodec {
 		ffmpegCmdArray = append(ffmpegCmdArray, "-c:a", "aac")
 	}
-
 	if handleAudioChannels {
 		ffmpegCmdArray = append(ffmpegCmdArray, "-ac", "2")
 	}
-
 	tempName := exutf8.RuneSubString(dir.Name(), 0, strings.LastIndexAny(dir.Name(), "."))
 	ffmpegCmdArray = append(ffmpegCmdArray, tempName+"-HEVC.mp4")
 	sugar.Infof("", ffmpegCmdArray)
 	ffmpegCmd := exec.Command("ffmpeg", ffmpegCmdArray...)
 	ffmpegCmd.Dir = path
-	ffmpegOut, _ := ffmpegCmd.StdoutPipe()
-
-	if err := ffmpegCmd.Start(); err != nil { // 运行命令
-		fmt.Println(err.Error())
+	ffmpegCmd.Stdout = os.Stdout
+	ffmpegCmd.Stderr = os.Stderr
+	if err := ffmpegCmd.Run(); err != nil { // 运行命令
+		sugar.Errorf(err.Error())
 	}
-
-	readData := make([]byte, BufferSize)
-	i, _ := ffmpegOut.Read(readData)
-
-	for {
-		if i > 0 {
-			sugar.Infof("ffmpeg output: %v", readData)
-		} else {
-			break
-		}
-	}
-
-	defer ffmpegOut.Close()
 }
