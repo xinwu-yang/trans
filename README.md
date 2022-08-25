@@ -17,9 +17,15 @@ go build
 # 使用帮助
 h264-to-h265.exe -h
 
+Usage of h264-to-h265.exe:
+  -d string
+        路径，默认为空
+  -vc string
+        视频编解码 (default "hevc")
+
 # 使用
 h264-to-h265.exe -d "D:\\demo-video\\test"
 
-# GPU加速
+# 启用GPU加速
 h264-to-h265.exe -d "D:\\demo-video\\test" -vc hevc_nvenc
 ```
