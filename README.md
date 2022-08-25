@@ -10,6 +10,12 @@
 
 ### 如何使用
 
+1. 下载[FFmpeg](https://www.gyan.dev/ffmpeg/builds/)
+
+2. 配置把ffmpeg下`bin`目录添加到环境变量
+
+3. 使用h264-to-h265.exe
+
 ```
 # 构建
 go build
