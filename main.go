@@ -10,7 +10,6 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/thinkeridea/go-extend/exunicode/exutf8"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -177,7 +176,7 @@ func handleVideo(fileName string, dir fs.DirEntry, path string, vc string, sugar
 	if handleAudioChannels {
 		ffmpegCmdArray = append(ffmpegCmdArray, "-ac", "2")
 	}
-	tempName := exutf8.RuneSubString(dir.Name(), 0, strings.LastIndexAny(dir.Name(), "."))
+	tempName := dir.Name()[:strings.LastIndexAny(dir.Name(), ".")]
 	ffmpegCmdArray = append(ffmpegCmdArray, tempName+"-HEVC.mp4")
 	sugar.Infof("", ffmpegCmdArray)
 	ffmpegCmd := exec.Command("ffmpeg", ffmpegCmdArray...)

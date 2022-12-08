@@ -1,11 +1,8 @@
 module h264-to-h265
 
-go 1.18
+go 1.19
 
-require (
-	github.com/thinkeridea/go-extend v1.3.2
-	go.uber.org/zap v1.21.0
-)
+require go.uber.org/zap v1.21.0
 
 require (
 	go.uber.org/atomic v1.9.0 // indirect
