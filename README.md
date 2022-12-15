@@ -25,13 +25,15 @@ h264-to-h265.exe -h
 
 Usage of h264-to-h265.exe:
   -d string
-        路径，默认为空
+        路径，默认为当前执行目录
   -vc string
-        视频编解码 (default "hevc")
+        视频编解码，默认 hevc_nvenc
+  -r  bool
+        是否递归子目录，默认 true
 
 # 使用
 h264-to-h265.exe -d "D:\\demo-video\\test"
 
 # 启用GPU加速
-h264-to-h265.exe -d "D:\\demo-video\\test" -vc hevc_nvenc
+h264-to-h265.exe -d "D:\\demo-video\\test" -vc hevc -r=false
 ```
