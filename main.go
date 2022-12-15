@@ -17,6 +17,7 @@ import (
 // ffmpeg stdout
 const BufferSize = 4096
 const FileSeparator = string(os.PathSeparator)
+const Version = "1.1.0"
 
 // 全局日志
 var sugar *zap.SugaredLogger
@@ -81,6 +82,8 @@ func main() {
 	logger := zap.New(core, zap.AddCaller())
 	defer logger.Sync()
 	sugar = logger.Sugar()
+
+	sugar.Infof("H264-To-H265 Version: %s", Version)
 
 	// 获取绝对路径
 	crrDir, err := filepath.Abs(path)
