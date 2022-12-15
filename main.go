@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"flag"
-	"io/fs"
+	"io/ioutil"
 	"os"
 	"os/exec"
-	"runtime"
+	"path/filepath"
 	"strings"
 
 	"go.uber.org/zap"
@@ -16,6 +16,7 @@ import (
 
 // ffmpeg stdout
 const BufferSize = 4096
+const FileSeparator = string(os.PathSeparator)
 
 // 全局日志
 var sugar *zap.SugaredLogger
@@ -68,57 +69,51 @@ func main() {
 	// 定义几个变量，用于接收命令行的参数值
 	var path string
 	var videoCodec string
-	flag.StringVar(&path, "d", "./", "路径，默认当前路径")
+	var recursive bool
+	flag.StringVar(&path, "d", "./", "视频路径，默认当前路径")
 	flag.StringVar(&videoCodec, "vc", "hevc_nvenc", "视频编码，默认 hevc_nvenc")
+	flag.BoolVar(&recursive, "r", true, "是否递归子目录")
 	// 解析注册的 flag
 	flag.Parse()
 
+	// 配置日志
 	core := zapcore.NewCore(getEncoder(), zapcore.AddSync(os.Stdout), zapcore.DebugLevel)
 	logger := zap.New(core, zap.AddCaller())
 	defer logger.Sync()
 	sugar = logger.Sugar()
 
-	sugar.Infof("系统：%s", runtime.GOOS)
-	sugar.Infof("架构：%s", runtime.GOARCH)
-
-	// f, err := os.OpenFile(path, os.O_RDONLY, os.ModeDir)
-	// if err != nil {
-	// 	sugar.Errorf("open dir has error", "err", err.Error())
-	// }
-	// defer f.Close()
-	// dirs, _ := f.ReadDir(-1)
-	// for _, dir := range dirs {
-	// 	if !dir.IsDir() {
-	// 		execFFmpegCmd(dir, path, videoCodec)
-	// 	}
-	// }
-	readFiles(path, videoCodec)
+	// 获取绝对路径
+	crrDir, err := filepath.Abs(path)
+	if err != nil {
+		sugar.Error(err.Error())
+	}
+	readFiles(crrDir, videoCodec, recursive)
 }
 
-func readFiles(path string, videoCodec string) {
-	f, err := os.OpenFile(path, os.O_RDONLY, os.ModeDir)
-	if err != nil {
-		sugar.Errorf("open dir has error", "err", err.Error())
-	}
-	defer f.Close()
-	dirs, _ := f.ReadDir(-1)
+/* 读取目录文件列表 */
+func readFiles(path string, videoCodec string, recursive bool) {
+	dirs, _ := ioutil.ReadDir(path)
+	dirSize := len(dirs)
+	sugar.Infof("当前处理目录：%s", path)
+	sugar.Infof("目录下文件或子目录总数：%v", dirSize)
 	for _, dir := range dirs {
+		dirName := dir.Name()
 		if !dir.IsDir() {
-			execFFmpegCmd(dir, path, videoCodec)
+			execFFprobeCmd(dirName, path, videoCodec)
 		} else {
-			dirPath := path + "\\" + dir.Name()
-			sugar.Infof("递归处理路径：%s", dirPath)
-			readFiles(dirPath, videoCodec)
+			if recursive {
+				childDirPath := path + FileSeparator + dirName
+				readFiles(childDirPath, videoCodec, recursive)
+			}
 		}
 	}
 }
 
-/*获取视频编码信息等*/
-func execFFmpegCmd(file fs.DirEntry, path string, videoCodec string) {
-	sugar.Infof("开始处理文件：%s", file.Name())
-	fileName := path + "\\" + file.Name()
-	sugar.Infof("CMD: ffprobe -v quiet -print_format json -show_format -show_streams %v", fileName)
-	cmd := exec.Command("ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", fileName)
+/* 获取视频编码信息 */
+func execFFprobeCmd(fileName string, path string, videoCodec string) {
+	sugar.Infof("开始处理文件：%s", fileName)
+	sugar.Infof("CMD: ffprobe -v quiet -print_format json -show_format -show_streams %v", path+FileSeparator+fileName)
+	cmd := exec.Command("ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", path+FileSeparator+fileName)
 	ffprobeOut, _ := cmd.StdoutPipe()
 	cmd.Start()
 	var bt bytes.Buffer
@@ -180,7 +175,7 @@ func execFFmpegCmd(file fs.DirEntry, path string, videoCodec string) {
 			sugar.Infof("是否处理音频编码：%v", handleAudioCodec)
 			sugar.Infof("是否处理音频声道数：%v", handleAudioChannels)
 			if handleVideoCodec || handleVideoPixFmt || handleAudioCodec || handleAudioChannels {
-				handleVideo(fileName, file, path, videoCodec, sugar, handleVideoCodec, handleVideoPixFmt, handleAudioCodec, handleAudioChannels)
+				execFFmpegCmd(fileName, path, videoCodec, sugar, handleVideoCodec, handleVideoPixFmt, handleAudioCodec, handleAudioChannels)
 			}
 			break
 		}
@@ -188,9 +183,9 @@ func execFFmpegCmd(file fs.DirEntry, path string, videoCodec string) {
 	ffprobeOut.Close()
 }
 
-/*处理视频*/
-func handleVideo(fileName string, dir fs.DirEntry, path string, vc string, sugar *zap.SugaredLogger, handleVideoCodec bool, handleVideoPixFmt bool, handleAudioCodec bool, handleAudioChannels bool) {
-	ffmpegCmdArray := []string{"-i", fileName}
+/* 处理视频 */
+func execFFmpegCmd(fileName string, path string, vc string, sugar *zap.SugaredLogger, handleVideoCodec bool, handleVideoPixFmt bool, handleAudioCodec bool, handleAudioChannels bool) {
+	ffmpegCmdArray := []string{"-i", path + FileSeparator + fileName}
 	if handleVideoCodec {
 		ffmpegCmdArray = append(ffmpegCmdArray, "-c:v", vc)
 	}
@@ -203,14 +198,14 @@ func handleVideo(fileName string, dir fs.DirEntry, path string, vc string, sugar
 	if handleAudioChannels {
 		ffmpegCmdArray = append(ffmpegCmdArray, "-ac", "2")
 	}
-	tempName := dir.Name()[:strings.LastIndexAny(dir.Name(), ".")]
+	tempName := fileName[:strings.LastIndexAny(fileName, ".")]
 	ffmpegCmdArray = append(ffmpegCmdArray, tempName+"-HEVC.mp4")
 	sugar.Infof("", ffmpegCmdArray)
 	ffmpegCmd := exec.Command("ffmpeg", ffmpegCmdArray...)
 	ffmpegCmd.Dir = path
 	ffmpegCmd.Stdout = os.Stdout
 	ffmpegCmd.Stderr = os.Stderr
-	if err := ffmpegCmd.Run(); err != nil { // 运行命令
-		sugar.Errorf(err.Error())
+	if err := ffmpegCmd.Run(); err != nil {
+		sugar.Error(err.Error())
 	}
 }
