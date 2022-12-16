@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"flag"
 	"io/ioutil"
@@ -14,8 +13,6 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// ffmpeg stdout
-const BufferSize = 4096
 const FileSeparator = string(os.PathSeparator)
 const Version = "1.1.0"
 
@@ -83,6 +80,7 @@ func main() {
 	defer logger.Sync()
 	sugar = logger.Sugar()
 
+	// 打印版本号
 	sugar.Infof("H264-To-H265 Version: %s", Version)
 
 	// 获取绝对路径
@@ -119,69 +117,56 @@ func execFFprobeCmd(fileName string, path string, videoCodec string) {
 	cmd := exec.Command("ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", path+FileSeparator+fileName)
 	ffprobeOut, _ := cmd.StdoutPipe()
 	cmd.Start()
-	var bt bytes.Buffer
-	for {
-		readData := make([]byte, BufferSize)
-		i, _ := ffprobeOut.Read(readData)
-		if i > 0 {
-			bt.Write(readData[:i])
-		} else {
-			// 读取完输出后解析json
-			format := Format{}
-			videoSteam := VideoSteam{}
-			audioSteam := AudioSteam{}
-			mediaInfo := MediaInfo{}
-			jsonBytes := bt.Bytes()
-			var data map[string]interface{}
-			err := json.Unmarshal(jsonBytes[:bt.Len()], &data)
-			if err != nil {
-				sugar.Errorf(err.Error())
-				return
-			}
-			formatBytes, _ := json.Marshal(data["format"])
-			json.Unmarshal(formatBytes, &format)
-
-			streams := data["streams"]
-			streamsBytes, _ := json.Marshal(streams)
-			var streamData []map[string]interface{}
-			json.Unmarshal(streamsBytes, &streamData)
-
-			for _, stream := range streamData {
-				streamBytes, _ := json.Marshal(stream)
-				if stream["codec_type"] == "video" {
-					json.Unmarshal(streamBytes, &videoSteam)
-				} else if stream["codec_type"] == "audio" {
-					json.Unmarshal(streamBytes, &audioSteam)
-				}
-			}
-			mediaInfo.Format = format
-			mediaInfo.VideoSteam = videoSteam
-			mediaInfo.AudioSteam = audioSteam
-			handleVideoCodec, handleVideoPixFmt, handleAudioCodec, handleAudioChannels := false, false, false, false
-
-			// 根据参数判断是否处理视频
-			if videoSteam.CodecType == "video" && videoSteam.CodecName != "hevc" {
-				handleVideoCodec = true
-			}
-			if videoSteam.CodecType == "video" && videoSteam.PixelFormat != "yuv420p" {
-				handleVideoPixFmt = true
-			}
-			if audioSteam.CodecType == "audio" && audioSteam.CodecName != "aac" {
-				handleAudioCodec = true
-			}
-			if audioSteam.CodecType == "audio" && audioSteam.Channels > 2 {
-				handleAudioChannels = true
-			}
-			// 开始处理视频
-			sugar.Infof("是否处理视频编码：%v", handleVideoCodec)
-			sugar.Infof("是否处理视频像素格式：%v", handleVideoPixFmt)
-			sugar.Infof("是否处理音频编码：%v", handleAudioCodec)
-			sugar.Infof("是否处理音频声道数：%v", handleAudioChannels)
-			if handleVideoCodec || handleVideoPixFmt || handleAudioCodec || handleAudioChannels {
-				execFFmpegCmd(fileName, path, videoCodec, sugar, handleVideoCodec, handleVideoPixFmt, handleAudioCodec, handleAudioChannels)
-			}
-			break
+	jsonBytes, _ := ioutil.ReadAll(ffprobeOut)
+	// 读取完输出后解析json
+	format := Format{}
+	videoSteam := VideoSteam{}
+	audioSteam := AudioSteam{}
+	mediaInfo := MediaInfo{}
+	var data map[string]interface{}
+	err := json.Unmarshal(jsonBytes, &data)
+	if err != nil {
+		sugar.Errorf(err.Error())
+		return
+	}
+	formatBytes, _ := json.Marshal(data["format"])
+	json.Unmarshal(formatBytes, &format)
+	streams := data["streams"]
+	streamsBytes, _ := json.Marshal(streams)
+	var streamData []map[string]interface{}
+	json.Unmarshal(streamsBytes, &streamData)
+	for _, stream := range streamData {
+		streamBytes, _ := json.Marshal(stream)
+		if stream["codec_type"] == "video" {
+			json.Unmarshal(streamBytes, &videoSteam)
+		} else if stream["codec_type"] == "audio" {
+			json.Unmarshal(streamBytes, &audioSteam)
 		}
+	}
+	mediaInfo.Format = format
+	mediaInfo.VideoSteam = videoSteam
+	mediaInfo.AudioSteam = audioSteam
+	handleVideoCodec, handleVideoPixFmt, handleAudioCodec, handleAudioChannels := false, false, false, false
+	// 根据参数判断是否处理视频
+	if videoSteam.CodecType == "video" && videoSteam.CodecName != "hevc" {
+		handleVideoCodec = true
+	}
+	if videoSteam.CodecType == "video" && videoSteam.PixelFormat != "yuv420p" {
+		handleVideoPixFmt = true
+	}
+	if audioSteam.CodecType == "audio" && audioSteam.CodecName != "aac" {
+		handleAudioCodec = true
+	}
+	if audioSteam.CodecType == "audio" && audioSteam.Channels > 2 {
+		handleAudioChannels = true
+	}
+	// 开始处理视频
+	sugar.Infof("是否处理视频编码：%v", handleVideoCodec)
+	sugar.Infof("是否处理视频像素格式：%v", handleVideoPixFmt)
+	sugar.Infof("是否处理音频编码：%v", handleAudioCodec)
+	sugar.Infof("是否处理音频声道数：%v", handleAudioChannels)
+	if handleVideoCodec || handleVideoPixFmt || handleAudioCodec || handleAudioChannels {
+		execFFmpegCmd(fileName, path, videoCodec, sugar, handleVideoCodec, handleVideoPixFmt, handleAudioCodec, handleAudioChannels)
 	}
 	ffprobeOut.Close()
 }
