@@ -6,7 +6,9 @@
 - 指定目录下音频转码`aac`
 - 像素格式转化为`yuv420p`
 - 声道数量变更为`2`
+- 可指定`CRF`值
 - 支持GPU加速
+- 支持递归目录
 
 ### 如何使用
 
@@ -24,16 +26,17 @@ go build
 h264-to-h265.exe -h
 
 Usage of h264-to-h265.exe:
+  -crf string
+        视频压缩质量 (default "28")
   -d string
-        路径，默认为当前执行目录
+        视频路径 (default "./")
+  -r    是否递归子目录（useage: -r=false） (default true)
   -vc string
-        视频编解码，默认 hevc_nvenc
-  -r  bool
-        是否递归子目录，默认 true
+        视频编码 (default "hevc_nvenc")
 
-# 使用
+# 基本使用
 h264-to-h265.exe -d "D:\\demo-video\\test"
 
-# 启用GPU加速
-h264-to-h265.exe -d "D:\\demo-video\\test" -vc hevc -r=false
+# 使用CPU转码
+h264-to-h265.exe -d "D:\\demo-video\\test" -vc hevc
 ```
