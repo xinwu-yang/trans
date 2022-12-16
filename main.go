@@ -8,13 +8,14 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
 const FileSeparator = string(os.PathSeparator)
-const Version = "1.1.0"
+const Version = "1.1.1"
 
 // 全局日志
 var sugar *zap.SugaredLogger
@@ -52,7 +53,9 @@ type MediaInfo struct {
 func getEncoder() zapcore.Encoder {
 	encoderConfig := zap.NewProductionEncoderConfig()
 	// 时间函数可以自定义
-	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	encoderConfig.EncodeTime = func(t time.Time, pae zapcore.PrimitiveArrayEncoder) {
+		pae.AppendString(t.Format("2006-01-02 15:04:05"))
+	}
 	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 	return zapcore.NewConsoleEncoder(encoderConfig)
 }
@@ -84,19 +87,20 @@ func main() {
 	sugar.Infof("H264-To-H265 Version: %s", Version)
 
 	// 获取绝对路径
-	crrDir, err := filepath.Abs(path)
+	absPath, err := filepath.Abs(path)
 	if err != nil {
 		sugar.Error(err.Error())
 	}
-	readFiles(crrDir, videoCodec, recursive)
+	readFiles(absPath, videoCodec, recursive)
 }
 
 /* 读取目录文件列表 */
 func readFiles(path string, videoCodec string, recursive bool) {
 	dirs, _ := ioutil.ReadDir(path)
 	dirSize := len(dirs)
+	sugar.Info("--------------------------切换目录--------------------------")
 	sugar.Infof("当前处理目录：%s", path)
-	sugar.Infof("目录下文件或子目录总数：%v", dirSize)
+	sugar.Infof("目录下文件和子目录总数：%v", dirSize)
 	for _, dir := range dirs {
 		dirName := dir.Name()
 		if !dir.IsDir() {
@@ -112,6 +116,7 @@ func readFiles(path string, videoCodec string, recursive bool) {
 
 /* 获取视频编码信息 */
 func execFFprobeCmd(fileName string, path string, videoCodec string) {
+	sugar.Info("--------------------------文件处理--------------------------")
 	sugar.Infof("开始处理文件：%s", fileName)
 	sugar.Infof("CMD: ffprobe -v quiet -print_format json -show_format -show_streams %v", path+FileSeparator+fileName)
 	cmd := exec.Command("ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", path+FileSeparator+fileName)
@@ -188,7 +193,7 @@ func execFFmpegCmd(fileName string, path string, vc string, sugar *zap.SugaredLo
 	}
 	tempName := fileName[:strings.LastIndexAny(fileName, ".")]
 	ffmpegCmdArray = append(ffmpegCmdArray, tempName+"-HEVC.mp4")
-	sugar.Infof("", ffmpegCmdArray)
+	sugar.Infof("CMD: ffmpeg %v", ffmpegCmdArray)
 	ffmpegCmd := exec.Command("ffmpeg", ffmpegCmdArray...)
 	ffmpegCmd.Dir = path
 	ffmpegCmd.Stdout = os.Stdout
