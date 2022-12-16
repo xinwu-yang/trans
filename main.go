@@ -72,10 +72,10 @@ func getEncoder() zapcore.Encoder {
 func main() {
 	// 定义几个变量，用于接收命令行的参数值
 	var path string
-	flag.StringVar(&path, "d", "./", "视频路径（default: ./）")
-	flag.StringVar(&videoCodec, "vc", "hevc_nvenc", "视频编码（default: hevc_nvenc）")
-	flag.StringVar(&crf, "crf", "28", "视频压缩质量（default: 28）")
-	flag.BoolVar(&recursive, "r", true, "是否递归子目录（default: true）（useage: -r=false）")
+	flag.StringVar(&path, "d", "./", "视频路径")
+	flag.StringVar(&videoCodec, "vc", "hevc_nvenc", "视频编码")
+	flag.StringVar(&crf, "crf", "28", "视频压缩质量")
+	flag.BoolVar(&recursive, "r", true, "是否递归子目录（useage: -r=false）")
 	// 解析注册的 flag
 	flag.Parse()
 
