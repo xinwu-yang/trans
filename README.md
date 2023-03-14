@@ -40,3 +40,5 @@ h264-to-h265.exe -d "D:\\demo-video\\test"
 # 使用CPU转码
 h264-to-h265.exe -d "D:\\demo-video\\test" -vc hevc
 ```
+
+> 文件名称带有 NOT-HANDLE 则会跳过处理

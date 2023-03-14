@@ -15,7 +15,7 @@ import (
 )
 
 const FileSeparator = string(os.PathSeparator)
-const Version = "1.1.2"
+const Version = "1.1.3"
 
 // 全局日志
 var sugar *zap.SugaredLogger
@@ -107,6 +107,11 @@ func readFiles(path string) {
 	for _, dir := range dirs {
 		dirName := dir.Name()
 		if !dir.IsDir() {
+			if strings.Contains(dirName, "NOT-HANDLE") {
+				sugar.Info("--------------------------文件跳过--------------------------")
+				sugar.Infof("文件【%s】被标记不处理", dirName)
+				continue
+			}
 			execFFprobeCmd(dirName, path)
 		} else if recursive {
 			childDirPath := path + FileSeparator + dirName
