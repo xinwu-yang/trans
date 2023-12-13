@@ -1,4 +1,4 @@
-# h264-to-h265
+# Transcoding tool
 
 ### 功能
 
@@ -16,16 +16,16 @@
 
 2. 配置把ffmpeg下`bin`目录添加到系统PATH环境变量
 
-3. 使用h264-to-h265.exe
+3. 使用trans.exe
 
 ```
 # 构建
 go build
 
 # 使用帮助
-h264-to-h265.exe -h
+trans.exe -h
 
-Usage of h264-to-h265.exe:
+Usage of trans.exe:
   -crf string
         视频压缩质量 (default "28")
   -d string
@@ -35,10 +35,10 @@ Usage of h264-to-h265.exe:
         视频编码 (default "hevc_nvenc")
 
 # 基本使用
-h264-to-h265.exe -d "D:\\demo-video\\test"
+trans.exe -d "D:\\demo-video\\test"
 
 # 使用CPU转码
-h264-to-h265.exe -d "D:\\demo-video\\test" -vc hevc
+trans.exe -d "D:\\demo-video\\test" -vc hevc
 ```
 
 > 文件名称带有 NOT-HANDLE 则会跳过处理
