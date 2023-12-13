@@ -15,13 +15,14 @@ import (
 )
 
 const FileSeparator = string(os.PathSeparator)
-const Version = "1.1.3"
+const Version = "1.1.4"
 
 // 全局日志
 var sugar *zap.SugaredLogger
 var crf string
 var videoCodec string
 var recursive bool
+var afterDelete bool
 
 type Format struct {
 	FileName       string  `json:"filename"`
@@ -76,6 +77,7 @@ func main() {
 	flag.StringVar(&videoCodec, "vc", "hevc_nvenc", "视频编码")
 	flag.StringVar(&crf, "crf", "28", "视频压缩质量(仅支持hevc编码)")
 	flag.BoolVar(&recursive, "r", true, "是否递归子目录(useage: -r=false)")
+	flag.BoolVar(&afterDelete, "D", false, "处理完成后是否删除源文件")
 	// 解析注册的 flag
 	flag.Parse()
 
@@ -184,7 +186,8 @@ func execFFprobeCmd(fileName string, path string) {
 
 /* 处理视频 */
 func execFFmpegCmd(fileName string, path string, handleVideoCodec bool, handleVideoPixFmt bool, handleAudioCodec bool, handleAudioChannels bool) {
-	ffmpegCmdArray := []string{"-i", path + FileSeparator + fileName}
+	absFilePath := path + FileSeparator + fileName
+	ffmpegCmdArray := []string{"-i", absFilePath}
 	if crf != "28" && videoCodec == "hevc" {
 		ffmpegCmdArray = append(ffmpegCmdArray, "-crf", crf)
 	}
@@ -201,7 +204,7 @@ func execFFmpegCmd(fileName string, path string, handleVideoCodec bool, handleVi
 		ffmpegCmdArray = append(ffmpegCmdArray, "-ac", "2")
 	}
 	tempName := fileName[:strings.LastIndexAny(fileName, ".")]
-	ffmpegCmdArray = append(ffmpegCmdArray, tempName+"-HEVC.mp4")
+	ffmpegCmdArray = append(ffmpegCmdArray, tempName+"-"+strings.ToUpper(videoCodec)+".mp4")
 	sugar.Infof("CMD: ffmpeg %v", ffmpegCmdArray)
 	ffmpegCmd := exec.Command("ffmpeg", ffmpegCmdArray...)
 	ffmpegCmd.Dir = path
@@ -209,5 +212,11 @@ func execFFmpegCmd(fileName string, path string, handleVideoCodec bool, handleVi
 	ffmpegCmd.Stderr = os.Stderr
 	if err := ffmpegCmd.Run(); err != nil {
 		sugar.Error(err.Error())
+		return
+	}
+	// 删除源文件
+	if afterDelete {
+		os.Remove(absFilePath)
+		sugar.Info("已删除文件：%s", absFilePath)
 	}
 }
