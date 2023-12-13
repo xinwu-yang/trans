@@ -1,4 +1,4 @@
-module h264-to-h265
+module trans
 
 go 1.21
 
