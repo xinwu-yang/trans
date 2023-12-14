@@ -26,19 +26,22 @@ go build
 trans.exe -h
 
 Usage of trans.exe:
+  -D    处理完成后是否删除源文件
   -crf string
-        视频压缩质量 (default "28")
+        视频压缩质量(仅支持hevc编码) (default "28")       
   -d string
         视频路径 (default "./")
-  -r    是否递归子目录（useage: -r=false） (default true)
+  -p string
+        指定pattern跳过处理(文件名) (default "NOT-HANDLE")
+  -r    是否递归子目录(useage: -r=false) (default true)   
   -vc string
-        视频编码 (default "hevc_nvenc")
+        视频编码 (default "av1_nvenc")
 
 # 基本使用
 trans.exe -d "D:\\demo-video\\test"
 
 # 使用CPU转码
-trans.exe -d "D:\\demo-video\\test" -vc hevc
+trans.exe -d "D:\\demo-video\\test" -vc hevc_nvenc
 ```
 
 > 文件名称带有 NOT-HANDLE 则会跳过处理

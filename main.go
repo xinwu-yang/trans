@@ -78,10 +78,10 @@ func main() {
 	var path string
 	flag.StringVar(&path, "d", "./", "视频路径")
 	flag.StringVar(&excludePattern, "p", "NOT-HANDLE", "指定pattern跳过处理(文件名)")
-	flag.StringVar(&videoCodec, "vc", "hevc_nvenc", "视频编码")
+	flag.StringVar(&videoCodec, "vc", "av1_nvenc", "视频编码")
 	flag.StringVar(&crf, "crf", "28", "视频压缩质量(仅支持hevc编码)")
-	flag.BoolVar(&recursive, "r", true, "是否递归子目录(useage: -r=false)")
-	flag.BoolVar(&afterDelete, "D", false, "处理完成后是否删除源文件")
+	flag.BoolVar(&recursive, "r", true, "递归子目录(useage: -r=false)")
+	flag.BoolVar(&afterDelete, "D", false, "处理完成后删除源文件")
 	// 解析注册的 flag
 	flag.Parse()
 
