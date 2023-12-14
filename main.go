@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	mapset "github.com/deckarep/golang-set/v2"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -23,6 +24,7 @@ var crf string
 var videoCodec string
 var recursive bool
 var afterDelete bool
+var excludeCodecSet = mapset.NewSet[string]()
 
 type Format struct {
 	FileName       string  `json:"filename"`
@@ -88,7 +90,7 @@ func main() {
 	sugar = logger.Sugar()
 
 	// 打印版本号
-	sugar.Infof("Welcome to use H264-To-H265 tool!")
+	sugar.Infof("Welcome to use Transcoding tool!")
 	sugar.Infof("Current version: %s", Version)
 
 	// 获取绝对路径
@@ -96,6 +98,12 @@ func main() {
 	if err != nil {
 		sugar.Error(err.Error())
 	}
+
+	// 默认配置
+	excludeCodecSet.Add("hevc")
+	excludeCodecSet.Add("av1")
+
+	// 处理开始
 	readFiles(absPath)
 }
 
@@ -125,12 +133,13 @@ func readFiles(path string) {
 /* 获取视频编码信息 */
 func execFFprobeCmd(fileName string, path string) {
 	sugar.Info("--------------------------文件处理--------------------------")
-	sugar.Infof("开始处理文件：%s", fileName)
+	sugar.Infof("处理文件：%s", fileName)
 	sugar.Infof("CMD: ffprobe -v quiet -print_format json -show_format -show_streams %v", path+FileSeparator+fileName)
 	cmd := exec.Command("ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", path+FileSeparator+fileName)
 	ffprobeOut, _ := cmd.StdoutPipe()
 	cmd.Start()
 	jsonBytes, _ := io.ReadAll(ffprobeOut)
+	ffprobeOut.Close()
 	// 读取完输出后解析json
 	format := Format{}
 	videoSteam := VideoSteam{}
@@ -161,7 +170,7 @@ func execFFprobeCmd(fileName string, path string) {
 	mediaInfo.AudioSteam = audioSteam
 	handleVideoCodec, handleVideoPixFmt, handleAudioCodec, handleAudioChannels := false, false, false, false
 	// 根据参数判断是否处理视频
-	if videoSteam.CodecType == "video" && videoSteam.CodecName != "hevc" {
+	if videoSteam.CodecType == "video" && !excludeCodecSet.Contains(videoSteam.CodecName) {
 		handleVideoCodec = true
 	}
 	if videoSteam.CodecType == "video" && videoSteam.PixelFormat != "yuv420p" {
@@ -174,14 +183,13 @@ func execFFprobeCmd(fileName string, path string) {
 		handleAudioChannels = true
 	}
 	// 开始处理视频
-	sugar.Infof("是否处理视频编码：%v", handleVideoCodec)
-	sugar.Infof("是否处理视频像素格式：%v", handleVideoPixFmt)
-	sugar.Infof("是否处理音频编码：%v", handleAudioCodec)
-	sugar.Infof("是否处理音频声道数：%v", handleAudioChannels)
+	sugar.Infof("视频编码：%s", videoSteam.CodecName)
+	sugar.Infof("视频像素格式：%s", videoSteam.PixelFormat)
+	sugar.Infof("音频编码：%s", audioSteam.CodecName)
+	sugar.Infof("音频声道数：%v", audioSteam.Channels)
 	if handleVideoCodec || handleVideoPixFmt || handleAudioCodec || handleAudioChannels {
 		execFFmpegCmd(fileName, path, handleVideoCodec, handleVideoPixFmt, handleAudioCodec, handleAudioChannels)
 	}
-	ffprobeOut.Close()
 }
 
 /* 处理视频 */
@@ -203,8 +211,8 @@ func execFFmpegCmd(fileName string, path string, handleVideoCodec bool, handleVi
 	if handleAudioChannels {
 		ffmpegCmdArray = append(ffmpegCmdArray, "-ac", "2")
 	}
-	tempName := fileName[:strings.LastIndexAny(fileName, ".")]
-	ffmpegCmdArray = append(ffmpegCmdArray, tempName+"-"+strings.ToUpper(videoCodec)+".mp4")
+	outputFileName := fileName[:strings.LastIndexAny(fileName, ".")] + "-" + strings.ToUpper(strings.ReplaceAll(videoCodec, "_nvenc", "")) + ".mp4"
+	ffmpegCmdArray = append(ffmpegCmdArray, outputFileName)
 	sugar.Infof("CMD: ffmpeg %v", ffmpegCmdArray)
 	ffmpegCmd := exec.Command("ffmpeg", ffmpegCmdArray...)
 	ffmpegCmd.Dir = path
