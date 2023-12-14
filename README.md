@@ -43,5 +43,3 @@ trans.exe -d "D:\\demo-video\\test"
 # 使用CPU转码
 trans.exe -d "D:\\demo-video\\test" -vc hevc_nvenc
 ```
-
-> 文件名称带有 NOT-HANDLE 则会跳过处理

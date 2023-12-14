@@ -16,7 +16,7 @@ import (
 )
 
 const FileSeparator = string(os.PathSeparator)
-const Version = "1.2.0"
+const Version = "1.2.1"
 
 // 全局日志
 var sugar *zap.SugaredLogger
@@ -228,6 +228,6 @@ func execFFmpegCmd(fileName string, path string, handleVideoCodec bool, handleVi
 	// 删除源文件
 	if afterDelete {
 		os.Remove(absFilePath)
-		sugar.Info("已删除文件：%s", absFilePath)
+		sugar.Infof("已删除文件：%s", absFilePath)
 	}
 }
