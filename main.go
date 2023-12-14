@@ -16,7 +16,7 @@ import (
 )
 
 const FileSeparator = string(os.PathSeparator)
-const Version = "1.1.4"
+const Version = "1.2.0"
 
 // 全局日志
 var sugar *zap.SugaredLogger
@@ -25,6 +25,7 @@ var videoCodec string
 var recursive bool
 var afterDelete bool
 var excludeCodecSet = mapset.NewSet[string]()
+var excludePattern string
 
 type Format struct {
 	FileName       string  `json:"filename"`
@@ -76,6 +77,7 @@ func main() {
 	// 定义几个变量，用于接收命令行的参数值
 	var path string
 	flag.StringVar(&path, "d", "./", "视频路径")
+	flag.StringVar(&excludePattern, "p", "NOT-HANDLE", "指定pattern跳过处理(文件名)")
 	flag.StringVar(&videoCodec, "vc", "hevc_nvenc", "视频编码")
 	flag.StringVar(&crf, "crf", "28", "视频压缩质量(仅支持hevc编码)")
 	flag.BoolVar(&recursive, "r", true, "是否递归子目录(useage: -r=false)")
@@ -97,6 +99,7 @@ func main() {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		sugar.Error(err.Error())
+		return
 	}
 
 	// 默认配置
@@ -117,7 +120,7 @@ func readFiles(path string) {
 	for _, dir := range dirs {
 		dirName := dir.Name()
 		if !dir.IsDir() {
-			if strings.Contains(dirName, "NOT-HANDLE") {
+			if strings.Contains(dirName, excludePattern) {
 				sugar.Info("--------------------------文件跳过--------------------------")
 				sugar.Infof("文件【%s】被标记不处理", dirName)
 				continue
@@ -139,7 +142,7 @@ func execFFprobeCmd(fileName string, path string) {
 	ffprobeOut, _ := cmd.StdoutPipe()
 	cmd.Start()
 	jsonBytes, _ := io.ReadAll(ffprobeOut)
-	ffprobeOut.Close()
+	defer ffprobeOut.Close()
 	// 读取完输出后解析json
 	format := Format{}
 	videoSteam := VideoSteam{}
