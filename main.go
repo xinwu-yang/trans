@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	pathUtil "path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -122,16 +121,10 @@ func readFiles(path string) {
 	for _, dir := range dirs {
 		dirName := dir.Name()
 		if !dir.IsDir() {
-			fileExt := strings.ToLower(pathUtil.Ext(dirName))
-			sugar.Info(fileExt)
-			if excludeExtSet.Contains(fileExt) {
+			result, msg := isSkip(dirName)
+			if result {
 				sugar.Info("--------------------------文件跳过--------------------------")
-				sugar.Infof("文件【%s】不是视频文件", dirName)
-				continue
-			}
-			if strings.Contains(dirName, excludePattern) {
-				sugar.Info("--------------------------文件跳过--------------------------")
-				sugar.Infof("文件【%s】被标记不处理", dirName)
+				sugar.Infof("文件【%s】"+msg, dirName)
 				continue
 			}
 			execFFprobeCmd(dirName, path)
@@ -140,6 +133,18 @@ func readFiles(path string) {
 			readFiles(childDirPath)
 		}
 	}
+}
+
+/* 文件是否需要处理 */
+func isSkip(filename string) (bool, string) {
+	fileExt := strings.ToLower(filepath.Ext(filename))
+	if excludeExtSet.Contains(fileExt) {
+		return true, "不是视频文件"
+	}
+	if strings.Contains(filename, excludePattern) {
+		return true, "被标记不处理"
+	}
+	return false, ""
 }
 
 /* 获取视频编码信息 */

@@ -1,14 +1,14 @@
-# Transcoding tool
+# Media transcoding tool
 
 ### 功能
 
-- 指定目录下视频转码`hev1`
+- 指定目录下视频转码`av1`
 - 指定目录下音频转码`aac`
 - 像素格式转化为`yuv420p`
 - 声道数量变更为`2`
-- 可指定`CRF`值
 - 支持GPU加速
 - 支持递归目录
+- 支持处理完成后删除源文件
 
 ### 如何使用
 
@@ -27,13 +27,11 @@ trans.exe -h
 
 Usage of trans.exe:
   -D    处理完成后是否删除源文件
-  -crf string
-        视频压缩质量(仅支持hevc编码) (default "28")       
   -d string
         视频路径 (default "./")
   -p string
         指定pattern跳过处理(文件名) (default "NOT-HANDLE")
-  -r    是否递归子目录(useage: -r=false) (default true)   
+  -r    是否递归子目录(useage: -r=false) (default true)
   -vc string
         视频编码 (default "av1_nvenc")
 
