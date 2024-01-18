@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	pathUtil "path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -16,16 +17,16 @@ import (
 )
 
 const FileSeparator = string(os.PathSeparator)
-const Version = "1.2.1"
+const Version = "1.2.2"
 
 // 全局日志
 var sugar *zap.SugaredLogger
-var crf string
 var videoCodec string
 var recursive bool
 var afterDelete bool
 var excludeCodecSet = mapset.NewSet[string]()
 var excludePattern string
+var excludeExtSet = mapset.NewSet[string]()
 
 type Format struct {
 	FileName       string  `json:"filename"`
@@ -79,7 +80,6 @@ func main() {
 	flag.StringVar(&path, "d", "./", "视频路径")
 	flag.StringVar(&excludePattern, "p", "NOT-HANDLE", "指定pattern跳过处理(文件名)")
 	flag.StringVar(&videoCodec, "vc", "av1_nvenc", "视频编码")
-	flag.StringVar(&crf, "crf", "28", "视频压缩质量(仅支持hevc编码)")
 	flag.BoolVar(&recursive, "r", true, "递归子目录(useage: -r=false)")
 	flag.BoolVar(&afterDelete, "D", false, "处理完成后删除源文件")
 	// 解析注册的 flag
@@ -105,6 +105,8 @@ func main() {
 	// 默认配置
 	excludeCodecSet.Add("hevc")
 	excludeCodecSet.Add("av1")
+	excludeExtSet.Add(".jpg")
+	excludeExtSet.Add(".png")
 
 	// 处理开始
 	readFiles(absPath)
@@ -120,6 +122,13 @@ func readFiles(path string) {
 	for _, dir := range dirs {
 		dirName := dir.Name()
 		if !dir.IsDir() {
+			fileExt := strings.ToLower(pathUtil.Ext(dirName))
+			sugar.Info(fileExt)
+			if excludeExtSet.Contains(fileExt) {
+				sugar.Info("--------------------------文件跳过--------------------------")
+				sugar.Infof("文件【%s】不是视频文件", dirName)
+				continue
+			}
 			if strings.Contains(dirName, excludePattern) {
 				sugar.Info("--------------------------文件跳过--------------------------")
 				sugar.Infof("文件【%s】被标记不处理", dirName)
@@ -199,9 +208,6 @@ func execFFprobeCmd(fileName string, path string) {
 func execFFmpegCmd(fileName string, path string, handleVideoCodec bool, handleVideoPixFmt bool, handleAudioCodec bool, handleAudioChannels bool) {
 	absFilePath := path + FileSeparator + fileName
 	ffmpegCmdArray := []string{"-i", absFilePath}
-	if crf != "28" && videoCodec == "hevc" {
-		ffmpegCmdArray = append(ffmpegCmdArray, "-crf", crf)
-	}
 	if handleVideoCodec {
 		ffmpegCmdArray = append(ffmpegCmdArray, "-c:v", videoCodec)
 	}
