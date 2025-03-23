@@ -38,6 +38,6 @@ Usage of trans.exe:
 # 基本使用
 trans.exe -d "D:\\demo-video\\test"
 
-# 使用CPU转码
+# 使用hevc_nvenc转码
 trans.exe -d "D:\\demo-video\\test" -vc hevc_nvenc
 ```
